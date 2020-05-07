@@ -10,7 +10,7 @@ using namespace solver;
 
 namespace solver
 {
-    double solve(const RealVariable &x) 
+    double solve(const RealVariable &x) // Returns the max number of the answers
     { 
         double ans1;
         double ans2;
@@ -20,7 +20,7 @@ namespace solver
             throw NoAnswer();
         else if(x.a == 0)
         {
-            if(abs(x.c) <= 0.0001) // handle negative 0
+            if(abs(x.c) <= EPSILON) // handle negative 0
                 return 0;
             return (-1)*(x.c/x.b);
         }
@@ -36,22 +36,17 @@ namespace solver
             }
         }
 
-        double toreturn = max(ans1,ans2);
-        return toreturn;
+        return max(ans1,ans2);
     }
     complex<double> solve(const ComplexVariable &x) 
     { 
-        complex<double> a = x.a;
-        complex<double> b = x.b;
-        complex<double> c = x.c;
         complex<double> zero (0.0,0.0);
-        if(a==zero) 
-        {
-            if(b==zero && c!=zero)
-                throw NoAnswer();
-            else return c/-b;
-        }
-        return (-b + sqrt(b * b - (a.real()*4+a.imag()*4) * c)) / ((2 * a.real() + 2 * a.imag()));
+        if(x.a!=zero) 
+            return (-x.b + sqrt(x.b*x.b-(x.a.real()*4 + x.a.imag()*4) * x.c))/((2*x.a.real() + 2*x.a.imag()));
+        if(x.b==zero && x.c!=zero)
+            throw NoAnswer();
+        else 
+            return x.c/-x.b;
     }
     
     /* RealVariable */
@@ -135,7 +130,7 @@ namespace solver
     }
 
     // Divide
-    RealVariable operator/(const RealVariable &x, const RealVariable &y) // Not sure about this
+    RealVariable operator/(const RealVariable &x, const RealVariable &y) 
     { 
         if(y.a == 0 && y.b == 0 && y.c == 0)
             throw InvalidEquation();
@@ -166,10 +161,7 @@ namespace solver
     RealVariable operator^(const RealVariable &x, const double power) 
     {   
         RealVariable toreturn;
-        if(power == 1)
-            return x;
-        if(power == 2)
-            return x*x;
+        
         if(power>2 && (x.b>0 || x.a>0))
             throw InvalidEquation();
         else if(power == 2 && x.a>0)
@@ -188,6 +180,10 @@ namespace solver
             toreturn.b = 2*x.b*x.c;
             toreturn.c = pow(x.c, power);
         }
+        if(power == 1)
+            return x;
+        if(power == 2)
+            return x*x;
         return toreturn;
         
     }
@@ -285,21 +281,22 @@ namespace solver
     }
 
     // Divide
-    ComplexVariable operator/(const ComplexVariable &x, const ComplexVariable &y) // Implement better please
+    ComplexVariable operator/(const ComplexVariable &x, const ComplexVariable &y) //
     { 
-        if (y.a == complex<double >(0.0,0.0) && y.b == complex<double >(0.0,0.0) && y.c == complex<double>(0.0,0.0)) 
+        complex<double> zero (0.0,0.0);
+        ComplexVariable toreturn;
+        if (y.a == zero && y.b == zero && y.c == zero) 
             throw InvalidEquation();
-        else 
-        {
-            if (y.a == complex<double>(0.0,0.0) && y.b == complex<double>(0.0,0.0) && y.c != complex<double>(0.0,0.0))
-                return ComplexVariable(x.a / y.c, x.b / y.c, x.c / y.c);
-            if (y.a == complex<double>(0.0,0.0) && y.b == complex<double>(0.0,0.0) && y.c != complex<double>(0.0,0.0))
-                return ComplexVariable(x.a / y.c, x.b / y.c, x.c / y.c);
-            if (y.a != complex<double>(0.0,0.0) && y.b != complex<double>(0.0,0.0) && y.c == complex<double>(0.0,0.0)) 
-                return ComplexVariable(x.a / y.a, x.b / y.b, 0);
-            if (y.a == complex<double>(0.0,0.0) && y.b != complex<double>(0.0,0.0) && y.c == complex<double>(0.0,0.0)) 
-                return ComplexVariable(0, x.b / y.b, 0);
-        }
+        if(y.a != zero) toreturn.a = x.a/y.a;
+        else toreturn.a = 0;
+
+        if(y.b != zero) toreturn.b = x.b/y.b;
+        else toreturn.b = 0;
+
+        if(y.c != zero) toreturn.c = x.c/y.c;
+        else toreturn.c = 0;
+
+        return toreturn;
     }
     ComplexVariable operator/(const ComplexVariable &x, const complex<double> y) 
     { 
@@ -329,24 +326,19 @@ namespace solver
     }
 
     // ^
-    ComplexVariable operator^(const ComplexVariable &x, const complex<double> power) // Implement better
+    ComplexVariable operator^(const ComplexVariable &x, const complex<double> power)
     { 
-        if(power.imag() != 0) 
-            throw InvalidEquation();
-        if(power.real() == 2)
-            return x*x;
-        if((power.real()>2 && x.a==complex<double>(0.0,0.0) && x.b==complex<double>(0.0,0.0))) 
-            return ComplexVariable(0,0,pow(x.c,power));
-        if ((x.a!=complex<double>(0.0,0.0)) || (power.real()>2) || (power.real()<0) ) 
-            throw InvalidEquation();
-        if(x.b!=complex<double>(0.0,0.0) && x.c!=complex<double>(0.0,0.0) && power.real()==2)
-            return ComplexVariable(pow(x.b,power),x.b*x.c*power,pow(x.c,power));
-        if(x.b!=complex<double>(0.0,0.0) && x.c==complex<double>(0.0,0.0) && power.real()==2) 
-            return ComplexVariable(pow(x.b,power),0,0);
-        if(power==complex<double>(0.0,1.0)) 
-            return x;
-        if(power==complex<double>(0.0,0.0)) 
-            return ComplexVariable(0,0,1);
+        complex<double> zero (0.0,0.0);
+        if(power.imag() == 0)
+        {
+            if(power.real() == 2)
+                return x*x;
+            if(power==complex<double>(0.0,1.0)) 
+                return x;
+            if(power==zero) 
+                return ComplexVariable(0,0,1);
+        } 
+        throw InvalidEquation();
     }
 
     // ==
